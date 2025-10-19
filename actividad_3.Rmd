@@ -1,0 +1,32 @@
+---
+title: "Actividad 3"
+author: ',Ricardo'
+date: "2025-10-5"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+d1=read.table("C:\\Users\\Usuario\\Documents\\U_JAVERIANA\\Metodos_simulacion_estadistica\\MODULO_3\\datos_actividad3\\student\\student-mat.csv",sep=";",header=TRUE)
+d2=read.table("C:\\Users\\Usuario\\Documents\\U_JAVERIANA\\Metodos_simulacion_estadistica\\MODULO_3\\datos_actividad3\\student\\student-por.csv",sep=";",header=TRUE)
+
+d3=merge(d1,d2,by=c("school","sex","age","address","famsize","Pstatus","Medu","Fedu","Mjob","Fjob","reason","nursery","internet"))
+print(nrow(d3)) # 382 students
+
+```
+
+## Exploración de Datos
+
+## Modelo de regresión lineal simple G3
+
+## Analisis de diagnostico
+
+## Analisis de datos atipicos o influyentes
+
+## Intervalos de confianza y predicciones
+
+## Discusion y conclusiones
+
+
+
+
