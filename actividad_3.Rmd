@@ -273,9 +273,11 @@ kable(tabla_final, caption = "Tabla 6. Intervalos de confianza y predicción par
 
 Los intervalos de confianza y predicción muestran que, tanto para Portugués como para Matemáticas, las predicciones del modelo se mantienen muy ajustadas alrededor de la línea de regresión (G3 ~ G2).
 Los IC son angostos, lo que refleja una alta precisión en la estimación de la media poblacional; mientras que los IP son más amplios, representando la variabilidad individual.
-En ambos modelos, a medida que G2 aumenta, también lo hace G3, lo que confirma la relación lineal positiva entre las notas de segundo y tercer periodo.
+En ambos modelos, a medida que G2 aumenta, también lo hace G3, lo que confirma la relación lineal positiva entre las notas de segundo y tercer periodo. Dejando ver el rango de la mayor y la mas alta respecto a cada modelo de confianza y predicción.
 
-```{r}
+Los siguientes graficos muestran G2, G3 en donde el grafico nos permite ver la prediccion del modelo y la incertidumbre asociada, la recta esta representada con la linea azul, la banda azul es el intervalo de confianza y es angosta debido a su variabilidad ya que es poca, la banda roja es donde puede caer probablemente y los puntos son los datos reales, vemos que la mayoria de puntos estan cercanos y eso indica un buen ajuste del modelo, la asignatura POR y MAT se pueden ver claramente en los graficos.
+
+```{r graficom,include= TRUE, echo=FALSE, results='hold', message=FALSE, warning=FALSE}
 bands_plot <- function(df, fit, xname, titulo){
 xseq <- seq(min(df[[xname]], na.rm = TRUE), max(df[[xname]], na.rm = TRUE), length.out = 200)
 nd <- setNames(data.frame(xseq), xname)
@@ -320,21 +322,10 @@ El coeficiente de determinación (R² = 0.84) sugiere que G2 explica el 84% de l
 
 En conclusión, el rendimiento del estudiante en el segundo periodo académico (G2) es un excelente estimador de su nota final (G3), lo cual valida la hipótesis inicial de relación lineal entre ambas variables.
 
+Los gráficos de intervalos de confianza y predicción muestran que existe una relación lineal positiva y fuerte entre las calificaciones del segundo (G2) y tercer período (G3) tanto en Portugués como en Matemáticas.
+Las bandas de confianza son angostas, lo que indica alta precisión en la estimación de la media.
+Las bandas de predicción son más amplias, reflejando la variabilidad individual esperada.
+En ambos casos, la mayoría de los puntos se encuentran dentro de las bandas, lo que confirma la validez del modelo lineal simple y la capacidad predictiva de G2 sobre G3.
 
 
-Selección de X: para POR se usó r x_por; para MAT se usó r x_mat, elegidas por mayor |correlación| con G3 entre variables cuantitativas.
 
-Significancia: en ambos modelos se reportan los tests t (pendiente) y F global, con r format(glance_por$p.value, scientific = TRUE) y r format(glance_mat$p.value, scientific = TRUE) como valores-p de los modelos, respectivamente.
-
-Ajuste: los 
-𝑅
-2
-R
-2
- fueron r round(glance_por$r.squared,3) (POR) y r round(glance_mat$r.squared,3) (MAT). Interpretar en contexto académico (proporción de variabilidad explicada por una única X).
-
-Supuestos: según los diagnósticos (QQ, Scale–Location) y pruebas (Shapiro, BP, DW), discutir si hay evidencia de desvíos (no normalidad/hetero/autocorrelación). Si se detectan problemas, sugerir alternativas (transformaciones, Spearman/Kendall como análisis complementario, o modelos fuera de alcance).
-
-Atípicos/Influencia: comentar los mayores Cook (sección 7) y si alteran inferencias; incluir análisis de sensibilidad en anexos si procede.
-
-Predicción: diferenciar IC de la media vs IP individual; los IP son más anchos (incorporan la varianza del error).
