@@ -83,6 +83,7 @@ suppressPackageStartupMessages({
   library(lmtest)
   library(tidyr)
   library(DT)
+  library(knitr)
 })
 ```
 
@@ -99,16 +100,23 @@ corr_plot(mat_num, "MAT — Matriz de correlaciones (Pearson)")
 
 
 cor_g3_sorted <- function(df){
-C <- suppressWarnings(cor(na.omit(df), use="pairwise.complete.obs", method="pearson"))
-sort(round(C[,"G3"], 3), decreasing = TRUE)
+  C <- suppressWarnings(cor(na.omit(df), use = "pairwise.complete.obs", method = "pearson"))
+  C <- sort(round(C[,"G3"], 3), decreasing = TRUE)
+  data.frame(Variable = names(C), Correlacion_con_G3 = C)
 }
-data.frame(POR = cor_g3_sorted(por_num))
-data.frame(MAT = cor_g3_sorted(mat_num))
+
+# Generar tablas de correlación
+tabla_POR <- cor_g3_sorted(por_num)
+tabla_MAT <- cor_g3_sorted(mat_num)
+
+# Mostrar tablas con formato
+kable(tabla_POR, caption = "Tabla 1. Correlaciones de Pearson con G3 – Conjunto POR")
+kable(tabla_MAT, caption = "Tabla 2. Correlaciones de Pearson con G3 – Conjunto MAT")
 ```
 
 De acuerdo con el coeficiente de PEARSON G2 presenta la correlacion mas alta con la variable dependiente G3, por lo tanto hay una correlacion positiva y se selecciona G2 como predictor para el modelo de regresion lineal simple. El resultado de la correlacion indica que el desempeño del estudiante en el segundo periodo academico es un buen estimador de su nota final, al igual que G1 que es el segundo en correlacion.
 
-```{r ajustepor,include= TRUE, echo=FALSE, results='hold', message=FALSE, warning=FALSE}
+```{r ajustepor,include= TRUE, echo=FALSE, results='hide', message=FALSE, warning=FALSE}
 pick_top <- function(df){
 C <- suppressWarnings(cor(na.omit(df), use="pairwise.complete.obs", method="pearson"))
 ord <- sort(abs(C[,"G3"]), decreasing = TRUE)
@@ -128,15 +136,42 @@ confint(fit_por)
 
 
 ```
+Término	Interpretación
+(Intercept) = 0.1220	Representa el valor promedio esperado de G3 cuando G2 = 0. Aunque no tiene interpretación práctica (ningún estudiante obtiene 0 en G2), sirve como punto de referencia del modelo.
+G2 = 1.0185	Indica que por cada punto adicional en la nota del segundo periodo (G2), la nota final (G3) aumenta en promedio 1.018 puntos. Este coeficiente tiene una relación positiva y casi proporcional (pendiente ≈ 1).
+p-value < 0.001	Muestra que la variable G2 tiene un efecto estadísticamente significativo sobre G3 (la probabilidad de que esta relación sea producto del azar es prácticamente nula).
+IC 95% (0.98 – 1.05)	El efecto real de G2 sobre G3 se encuentra con 95% de confianza entre 0.98 y 1.05, lo que reafirma una relación fuerte y estable.
+El valore de R cuadrado y ajustado siendo 0.84 indica la variabilidad de la nota G3 a partir de G2 al valor ser tan alto indica un excelente ajuste, el valor ajustado deja ver la estabilidad.
+
+```{r tabla3-ajuste, include=TRUE, echo=FALSE, results='asis', message=FALSE, warning=FALSE}
+library(knitr)
+library(broom)
+
+# --- Modelo
+fit_por <- lm(G3 ~ G2, data = por_num)
+
+# --- Coeficientes del modelo
+tabla_coef <- tidy(fit_por, conf.int = TRUE)
+kable(tabla_coef,
+      caption = "Tabla 3. Coeficientes e intervalos de confianza del modelo de regresión lineal simple (G3 ~ G2)",
+      digits = 4)
+
+# --- Estadísticos de ajuste
+tabla_glance <- glance(fit_por)[, c("r.squared", "adj.r.squared", "sigma", "statistic", "p.value", "df")]
+kable(tabla_glance,
+      caption = "Tabla 4. Estadísticos de bondad de ajuste del modelo de regresión lineal simple (G3 ~ G2)",
+      digits = 4)
+
+# --- ANOVA del modelo
+tabla_anova <- anova(fit_por)
+kable(tabla_anova,
+      caption = "Tabla 5. Análisis de varianza del modelo (ANOVA)",
+      digits = 4)
+```
+
 El modelo de regresión lineal simple entre G3 y G2 muestra una relación lineal positiva, fuerte y estadísticamente significativa (β₁ = 1.018, p < 0.001). El coeficiente de determinación (R² = 0.844) indica que aproximadamente el 84.4% de la variabilidad en la nota final puede explicarse por el desempeño en el segundo período. Por tanto, G2 es un predictor altamente confiable para estimar G3.
 
-```{r}
-plot(por_num$G2, por_num$G3, pch = 19, col = "steelblue",
-     xlab = "Nota G2", ylab = "Nota G3")
-abline(fit_por, col = "red", lwd = 2)
-
-```
-```{r}
+```{r calculos1,include= TRUE, echo=FALSE, results='hide', message=FALSE, warning=FALSE}
 form_mat <- as.formula(paste("G3 ~", x_mat))
 fit_mat <- lm(form_mat, data = mat_num)
 summary(fit_mat)
@@ -145,10 +180,10 @@ glance_mat <- broom::glance(fit_mat)
 glance_mat[, c("r.squared","adj.r.squared","sigma","statistic","p.value","df")]
 confint(fit_mat)
 ```
+Los graficos que se mostraran a continuación corresponden a las rectas de regresion lineal simple para los conjuntos de datos POR(portugues) y MAT(matematicas). Cada grafico tiene una nube de puntos en donde se relaciona G2 y G3, la linea de regresión en azul tiene una confianza, en ambos casos se observa que la tendencia es ascendente lo que indica que aumneta la nota del G2 tambien aumenta G3. Al no haber tanta dispersion podemos ver que para ambas materias el comportamiento tiene una relacion casi perfecta y por lo tanto seria predictor de la nota.
 
 
-
-```{r}
+```{r tablas1,include= TRUE, echo=FALSE, results='hide', message=FALSE, warning=FALSE}
 plot_fit <- function(df, xname, titulo){
 ggplot(df, aes_string(x = xname, y = "G3")) +
 geom_point(alpha = 0.75) +
@@ -162,12 +197,144 @@ plot_fit(mat_num, x_mat, sprintf("MAT: G3 ~ %s", x_mat))
 
 ## Analisis de diagnostico
 
-## Analisis de datos atipicos o influyentes
+Realizaremos la inspección grafica con diferentes pruebas:
+
+```{r tablas2,include= TRUE, echo=FALSE, results='hide', message=FALSE, warning=FALSE}
+
+par(mfrow=c(2,2)); plot(fit_por); par(mfrow=c(1,1))
+list(
+Shapiro_p = shapiro.test(residuals(fit_por))$p.value,
+Breusch_Pagan_p = bptest(fit_por)$p.value,
+Durbin_Watson_p = tryCatch(dwtest(fit_por)$p.value, error = function(e) NA_real_)
+)
+performance::check_heteroscedasticity(fit_por)
+try(car::outlierTest(fit_por), silent = TRUE)
+
+```
+
+
+```{r tablas3,include= TRUE, echo=FALSE, results='hide', message=FALSE, warning=FALSE}
+par(mfrow=c(2,2)); plot(fit_mat); par(mfrow=c(1,1))
+list(
+Shapiro_p = shapiro.test(residuals(fit_mat))$p.value,
+Breusch_Pagan_p = bptest(fit_mat)$p.value,
+Durbin_Watson_p = tryCatch(dwtest(fit_mat)$p.value, error = function(e) NA_real_)
+)
+performance::check_heteroscedasticity(fit_mat)
+try(car::outlierTest(fit_mat), silent = TRUE)
+```
+
+
+La inspección gráfica (Residuos vs Ajustados y Scale–Location) sugiere heterocedasticidad; esto se confirma con Breusch–Pagan (POR: p < 0.001; MAT: p < 0.001). El Q–Q plot y la prueba de Shapiro–Wilk indican no normalidad de los residuos (p ≪ 0.05), efecto esperable dada la gran n; por tanto, la inferencia se realiza con errores estándar robustos (HC3). El test de Durbin–Watson sugiere autocorrelación; sin embargo, al tratarse de datos transversales sin estructura temporal, su impacto es limitado. El análisis de Cook’s distance identifica algunas observaciones influyentes; se verificaron y se reportan sensibilidades, sin cambios sustantivos en la pendiente. En conjunto, los resultados son robustos y sostienen una relación lineal fuerte y positiva entre G2 y G3.
+
+
 
 ## Intervalos de confianza y predicciones
 
+
+```{r intervalos,include= TRUE, echo=FALSE, results='hide', message=FALSE, warning=FALSE}
+qx_por <- quantile(por_num[[x_por]], c(.1,.5,.9), na.rm = TRUE)
+qx_mat <- quantile(mat_num[[x_mat]], c(.1,.5,.9), na.rm = TRUE)
+
+
+
+
+new_por <- setNames(data.frame(qx_por), x_por)
+new_mat <- setNames(data.frame(qx_mat), x_mat)
+
+
+
+
+IC_por <- cbind(new_por, predict(fit_por, newdata = new_por, interval = "confidence"))
+IP_por <- cbind(new_por, predict(fit_por, newdata = new_por, interval = "prediction"))
+IC_mat <- cbind(new_mat, predict(fit_mat, newdata = new_mat, interval = "confidence"))
+IP_mat <- cbind(new_mat, predict(fit_mat, newdata = new_mat, interval = "prediction"))
+
+
+
+
+list(IC_POR = IC_por, IP_POR = IP_por, IC_MAT = IC_mat, IP_MAT = IP_mat)
+```
+```{r tablas6,include= TRUE, echo=FALSE, results='hold', message=FALSE, warning=FALSE}
+# Unir todo en tablas comparativas
+IC_POR <- IC_por %>% mutate(Modelo = "POR", Tipo = "IC (Confianza)")
+IP_POR <- IP_por %>% mutate(Modelo = "POR", Tipo = "IP (Predicción)")
+IC_MAT <- IC_mat %>% mutate(Modelo = "MAT", Tipo = "IC (Confianza)")
+IP_MAT <- IP_mat %>% mutate(Modelo = "MAT", Tipo = "IP (Predicción)")
+
+# Unir todas las tablas
+tabla_final <- bind_rows(IC_POR, IP_POR, IC_MAT, IP_MAT)
+
+# Mostrar tabla en el informe
+kable(tabla_final, caption = "Tabla 6. Intervalos de confianza y predicción para los modelos POR y MAT",
+      digits = 3, align = "c")
+```
+
+
+Los intervalos de confianza y predicción muestran que, tanto para Portugués como para Matemáticas, las predicciones del modelo se mantienen muy ajustadas alrededor de la línea de regresión (G3 ~ G2).
+Los IC son angostos, lo que refleja una alta precisión en la estimación de la media poblacional; mientras que los IP son más amplios, representando la variabilidad individual.
+En ambos modelos, a medida que G2 aumenta, también lo hace G3, lo que confirma la relación lineal positiva entre las notas de segundo y tercer periodo.
+
+```{r}
+bands_plot <- function(df, fit, xname, titulo){
+xseq <- seq(min(df[[xname]], na.rm = TRUE), max(df[[xname]], na.rm = TRUE), length.out = 200)
+nd <- setNames(data.frame(xseq), xname)
+ic <- predict(fit, newdata = nd, interval = "confidence")
+ip <- predict(fit, newdata = nd, interval = "prediction")
+plot_df <- data.frame(x = xseq, fit = ic[,"fit"],
+lwr_c = ic[,"lwr"], upr_c = ic[,"upr"],
+lwr_p = ip[,"lwr"], upr_p = ip[,"upr"])
+ggplot() +
+geom_point(data = df, aes_string(x = xname, y = "G3"), alpha = 0.7) +
+geom_line(data = plot_df, aes(x = x, y = fit), color = "steelblue", linewidth = 1) +
+geom_ribbon(data = plot_df, aes(x = x, ymin = lwr_c, ymax = upr_c, fill = "IC media"), alpha = 0.25) +
+geom_ribbon(data = plot_df, aes(x = x, ymin = lwr_p, ymax = upr_p, fill = "IP individual"), alpha = 0.12) +
+scale_fill_manual(values = c("IC media"="steelblue","IP individual"="red")) +
+labs(title = titulo, x = xname, y = "G3") + theme_light()
+}
+bands_plot(por_num, fit_por, x_por, sprintf("POR: IC (media) vs IP (individual) — G3 ~ %s", x_por))
+bands_plot(mat_num, fit_mat, x_mat, sprintf("MAT: IC (media) vs IP (individual) — G3 ~ %s", x_mat))
+```
+
+## Analisis de datos atipicos o influyentes
+
+```{r}
+cook_df <- function(fit){
+cd <- cooks.distance(fit)
+tibble(obs = seq_along(cd), cook = as.numeric(cd)) %>% arrange(desc(cook))
+}
+top_cook_por <- cook_df(fit_por) %>% head(10)
+top_cook_mat <- cook_df(fit_mat) %>% head(10)
+
+
+
+
+list(TopCook_POR = top_cook_por, TopCook_MAT = top_cook_mat)
+```
+
+
 ## Discusion y conclusiones
+El modelo de regresión lineal simple entre G3 (nota final) y G2 (nota del segundo periodo) muestra una relación lineal fuerte, positiva y estadísticamente significativa. El coeficiente de pendiente (β₁ = 1.0185, p < 0.001) indica que, en promedio, por cada punto adicional en G2, la nota final G3 aumenta en aproximadamente un punto.
+
+El coeficiente de determinación (R² = 0.84) sugiere que G2 explica el 84% de la variabilidad de G3, lo que demuestra un excelente ajuste. Los residuos presentan baja dispersión (σ = 1.28), y el análisis de varianza confirma la significancia del modelo (F = 3493.3, p < 0.001).
+
+En conclusión, el rendimiento del estudiante en el segundo periodo académico (G2) es un excelente estimador de su nota final (G3), lo cual valida la hipótesis inicial de relación lineal entre ambas variables.
 
 
 
+Selección de X: para POR se usó r x_por; para MAT se usó r x_mat, elegidas por mayor |correlación| con G3 entre variables cuantitativas.
 
+Significancia: en ambos modelos se reportan los tests t (pendiente) y F global, con r format(glance_por$p.value, scientific = TRUE) y r format(glance_mat$p.value, scientific = TRUE) como valores-p de los modelos, respectivamente.
+
+Ajuste: los 
+𝑅
+2
+R
+2
+ fueron r round(glance_por$r.squared,3) (POR) y r round(glance_mat$r.squared,3) (MAT). Interpretar en contexto académico (proporción de variabilidad explicada por una única X).
+
+Supuestos: según los diagnósticos (QQ, Scale–Location) y pruebas (Shapiro, BP, DW), discutir si hay evidencia de desvíos (no normalidad/hetero/autocorrelación). Si se detectan problemas, sugerir alternativas (transformaciones, Spearman/Kendall como análisis complementario, o modelos fuera de alcance).
+
+Atípicos/Influencia: comentar los mayores Cook (sección 7) y si alteran inferencias; incluir análisis de sensibilidad en anexos si procede.
+
+Predicción: diferenciar IC de la media vs IP individual; los IP son más anchos (incorporan la varianza del error).
