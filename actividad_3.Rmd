@@ -5,7 +5,7 @@ date: "2025-10-5"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
+```{r mezcla,include= TRUE, echo=FALSE, results='hide', message=FALSE, warning=FALSE}
 
 d1=read.table("C:\\Users\\Usuario\\Documents\\U_JAVERIANA\\Metodos_simulacion_estadistica\\MODULO_3\\datos_actividad3\\student\\student-mat.csv",sep=";",header=TRUE)
 d2=read.table("C:\\Users\\Usuario\\Documents\\U_JAVERIANA\\Metodos_simulacion_estadistica\\MODULO_3\\datos_actividad3\\student\\student-por.csv",sep=";",header=TRUE)
@@ -15,9 +15,150 @@ print(nrow(d3)) # 382 students
 
 ```
 
+## Introducción
+
+En esta actividad se modela la calificación final G3 de estudiantes de matematicas MAT y lengua portuguesa POR. Todo lo realizado se hace meidnate regresión lineal simple con una unica variable, siguiendo los pasos de exploracion, ajuste, pruebas t y f, diagnostico de supuestos, detección de atipicos/influencia e intervalos de confianza y predicción.
+
 ## Exploración de Datos
 
+### Comprobamos que el merge de los datos haya funcionado bien ya que tienen las mismas columnas en el resultado que se ve a continuación
+
+```{r verificacion,include= TRUE, echo=FALSE, results='hold', message=FALSE, warning=FALSE}
+
+num_vars <- c("G1","G2","age","absences","studytime","failures",
+"famrel","freetime","goout","Dalc","Walc","health","traveltime")
+
+
+
+
+por_num <- d2[, intersect(c("G3", num_vars), names(d2)), drop = FALSE]
+mat_num <- d1[, intersect(c("G3", num_vars), names(d1)), drop = FALSE]
+
+
+
+
+list(N_POR = nrow(por_num), N_MAT = nrow(mat_num),
+Vars_POR = names(por_num), Vars_MAT = names(mat_num))
+
+```
+
+
+```{r 1 resumen,include= TRUE, echo=FALSE, results='hide', message=FALSE, warning=FALSE}
+skim_tbl <- function(df){
+as.data.frame(summary(df))
+}
+list(Resumen_POR = skim_tbl(por_num),
+Resumen_MAT = skim_tbl(mat_num))
+```
+
+
+Realizaremos un EDA rapidamente con la ayuda de Summary de la libreria summarytools, esto nos dara toda la descripcion para lo que queremos trabajar:
+
+```{r SUMMARY,include= TRUE, echo=FALSE, results='hold', message=FALSE, warning=FALSE}
+library(summarytools)
+st_options(bootstrap.css = FALSE)   # evita inyectar CSS extra
+print(
+dfSummary(d3,
+varnumbers = TRUE, valid.col = TRUE, na.col = TRUE, graph.col = TRUE),
+method = "render",                 # <- clave para que se imprima en el HTML knit
+footnote = NA,
+table.classes = "table table-striped table-hover"
+)
+
+```
+
 ## Modelo de regresión lineal simple G3
+
+
+```{r librerias faltantes y demas,include= TRUE, echo=FALSE, results='hold', message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.width = 7, fig.height = 5)
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(ggplot2)
+  library(GGally)
+  library(broom)
+  library(readr)
+  library(performance)
+  library(car)
+  library(lmtest)
+  library(tidyr)
+  library(DT)
+})
+```
+
+A continuación usaremos la Correlacion de pearson para ver que variable tiene mas correlacion, seleccionarla y continuar con el modelo de regresión lineal.
+
+```{r correlacion,include= TRUE, echo=FALSE, results='hold', message=FALSE, warning=FALSE}
+corr_plot <- function(df, titulo){
+GGally::ggcorr(df, method = c("pairwise","pearson"), label = TRUE) + ggtitle(titulo)
+}
+corr_plot(por_num, "POR — Matriz de correlaciones (Pearson)")
+corr_plot(mat_num, "MAT — Matriz de correlaciones (Pearson)")
+
+
+
+
+cor_g3_sorted <- function(df){
+C <- suppressWarnings(cor(na.omit(df), use="pairwise.complete.obs", method="pearson"))
+sort(round(C[,"G3"], 3), decreasing = TRUE)
+}
+data.frame(POR = cor_g3_sorted(por_num))
+data.frame(MAT = cor_g3_sorted(mat_num))
+```
+
+De acuerdo con el coeficiente de PEARSON G2 presenta la correlacion mas alta con la variable dependiente G3, por lo tanto hay una correlacion positiva y se selecciona G2 como predictor para el modelo de regresion lineal simple. El resultado de la correlacion indica que el desempeño del estudiante en el segundo periodo academico es un buen estimador de su nota final, al igual que G1 que es el segundo en correlacion.
+
+```{r ajustepor,include= TRUE, echo=FALSE, results='hold', message=FALSE, warning=FALSE}
+pick_top <- function(df){
+C <- suppressWarnings(cor(na.omit(df), use="pairwise.complete.obs", method="pearson"))
+ord <- sort(abs(C[,"G3"]), decreasing = TRUE)
+top <- setdiff(names(ord)[1], "G3")
+top
+}
+x_por <- if ("G2" %in% names(por_num)) "G2" else pick_top(por_num)
+x_mat <- if ("G2" %in% names(mat_num)) "G2" else pick_top(mat_num)
+c(Predictor_POR = x_por, Predictor_MAT = x_mat)
+form_por <- as.formula(paste("G3 ~", x_por))
+fit_por <- lm(form_por, data = por_num)
+summary(fit_por)
+anova(fit_por)
+glance_por <- broom::glance(fit_por)
+glance_por[, c("r.squared","adj.r.squared","sigma","statistic","p.value","df")]
+confint(fit_por)
+
+
+```
+El modelo de regresión lineal simple entre G3 y G2 muestra una relación lineal positiva, fuerte y estadísticamente significativa (β₁ = 1.018, p < 0.001). El coeficiente de determinación (R² = 0.844) indica que aproximadamente el 84.4% de la variabilidad en la nota final puede explicarse por el desempeño en el segundo período. Por tanto, G2 es un predictor altamente confiable para estimar G3.
+
+```{r}
+plot(por_num$G2, por_num$G3, pch = 19, col = "steelblue",
+     xlab = "Nota G2", ylab = "Nota G3")
+abline(fit_por, col = "red", lwd = 2)
+
+```
+```{r}
+form_mat <- as.formula(paste("G3 ~", x_mat))
+fit_mat <- lm(form_mat, data = mat_num)
+summary(fit_mat)
+anova(fit_mat)
+glance_mat <- broom::glance(fit_mat)
+glance_mat[, c("r.squared","adj.r.squared","sigma","statistic","p.value","df")]
+confint(fit_mat)
+```
+
+
+
+```{r}
+plot_fit <- function(df, xname, titulo){
+ggplot(df, aes_string(x = xname, y = "G3")) +
+geom_point(alpha = 0.75) +
+geom_smooth(method = "lm", se = TRUE, color = "steelblue", fill = "pink") +
+labs(title = titulo, x = xname, y = "G3") +
+theme_light()
+}
+plot_fit(por_num, x_por, sprintf("POR: G3 ~ %s", x_por))
+plot_fit(mat_num, x_mat, sprintf("MAT: G3 ~ %s", x_mat))
+```
 
 ## Analisis de diagnostico
 
