@@ -300,18 +300,80 @@ bands_plot(mat_num, fit_mat, x_mat, sprintf("MAT: IC (media) vs IP (individual) 
 
 ## Analisis de datos atipicos o influyentes
 
-```{r}
-cook_df <- function(fit){
-cd <- cooks.distance(fit)
-tibble(obs = seq_along(cd), cook = as.numeric(cd)) %>% arrange(desc(cook))
+
+```{r influentes-tablas, echo=FALSE, message=FALSE, warning=FALSE}
+
+library(dplyr)
+library(broom)
+library(knitr)
+library(ggplot2)
+
+# Función: tabla de Cook + marcadores
+cook_table <- function(fit, data, modelo){
+  n  <- nrow(modelo.frame(fit))
+  k  <- length(coef(fit)) - 1               # predictores (sin intercepto); aquí k=1
+  thr <- 4 / (n - k - 1)                    # umbral 4/(n-k-1)
+  ct <- tibble(
+    obs        = seq_len(n),
+    cook       = cooks.distance(fit),
+    leverage   = hatvalues(fit),
+    rstudent   = rstudent(fit),
+    fitted     = fitted(fit),
+    resid      = resid(fit),
+    flag_cook  = cook > thr,
+    flag_rstud = abs(rstudent) > 3,
+    flag_lev   = leverage > (2*(k+1)/n)     # regla típica de leverage alto
+  ) %>%
+    arrange(desc(cook)) %>%
+    mutate(model = modelo, thr_cook = thr)
+  list(tbl = ct, thr = thr)
 }
-top_cook_por <- cook_df(fit_por) %>% head(10)
-top_cook_mat <- cook_df(fit_mat) %>% head(10)
 
+# Tablas POR & MAT
+por_cook <- cook_table(fit_por, por_num, "POR")
+mat_cook <- cook_table(fit_mat, mat_num, "MAT")
 
+# Mostrar top-10 con banderas
+kable(head(por_cook$tbl, 10),
+      caption = sprintf("Tabla 7. Top-10 distancia de Cook — %s (umbral 4/(n−k−1)=%.4f)", 
+                        "POR", por_cook$thr),
+      digits = 4)
 
+kable(head(mat_cook$tbl, 10),
+      caption = sprintf("Tabla 8. Top-10 distancia de Cook — %s (umbral 4/(n−k−1)=%.4f)", 
+                        "MAT", mat_cook$thr),
+      digits = 4)
 
-list(TopCook_POR = top_cook_por, TopCook_MAT = top_cook_mat)
+# Resumen de cuántos superan umbral y/o son atípicos
+resumen <- bind_rows(
+  por_cook$tbl %>% summarise(model="POR",
+                             n= n(),
+                             cook_flag = sum(flag_cook),
+                             rstud_flag= sum(flag_rstud),
+                             lev_flag  = sum(flag_lev),
+                             max_cook  = max(cook)),
+  mat_cook$tbl %>% summarise(model="MAT",
+                             n= n(),
+                             cook_flag = sum(flag_cook),
+                             rstud_flag= sum(flag_rstud),
+                             lev_flag  = sum(flag_lev),
+                             max_cook  = max(cook))
+)
+kable(resumen, caption="Tabla 9. Resumen de observaciones marcadas (Cook, residuo estudentizado, leverage)")
+
+# (Opcional) gráfico tipo “lollipop” de Cook
+plot_cook <- function(ct, titulo){
+  ggplot(ct %>% mutate(idx = row_number()) %>% head(30),
+         aes(x = reorder(sprintf("#%s", obs), cook), y = cook)) +
+    geom_segment(aes(xend = reorder(sprintf("#%s", obs), cook), y = 0, yend = cook)) +
+    geom_point() +
+    geom_hline(yintercept = ct$thr_cook[1], linetype = 2) +
+    coord_flip() + labs(x = "Observación (ordenada por Cook)", y = "Cook's D", title = titulo) +
+    theme_light()
+}
+plot_cook(por_cook$tbl, "Top-30 Cook — POR")
+plot_cook(mat_cook$tbl, "Top-30 Cook — MAT")
+
 ```
 
 
