@@ -310,7 +310,7 @@ library(ggplot2)
 
 # Función: tabla de Cook + marcadores
 cook_table <- function(fit, data, modelo){
-  n  <- nrow(modelo.frame(fit))
+  n  <- nrow(model.frame(fit))
   k  <- length(coef(fit)) - 1               # predictores (sin intercepto); aquí k=1
   thr <- 4 / (n - k - 1)                    # umbral 4/(n-k-1)
   ct <- tibble(
